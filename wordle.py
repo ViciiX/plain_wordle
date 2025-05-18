@@ -1,7 +1,8 @@
 import pandas as pd
-import os, json
+import os, json, datetime
 from PIL import Image, ImageDraw, ImageFont, ImageTk
 import tkinter as tk
+import tkinter.ttk as ttk
 
 
 
@@ -85,15 +86,65 @@ class ImageWidget():
 		super().__init__()
 		self.source_img = image
 		self.photo_img = ImageTk.PhotoImage(image)
-		self.widget = tk.Label(root, image = self.photo_img, **kwargs)
+		self.widget = ttk.Label(root, image = self.photo_img, **kwargs)
+		self.widget.bind("<Configure>", self.resize)
 		
 	def pack(self, **kwargs):
-		self.widget.pack()
+		self.widget.pack(**kwargs)
+	
+	def grid(self, **kwargs):
+		self.widget.grid(**kwargs)
+	
+	def resize(self, event):
+		width = event.width
+		height = event.height
+		swidth, sheight = self.source_img.size
+		scale = min(width/swidth, height/sheight)
+		print(f"""width:{width}
+height:{height}
+source_width:{swidth}
+source_height:{sheight}
+scale"{scale}
+{swidth - width} {sheight - height}
+{(round(swidth * scale), round(sheight * scale))}
+{self.widget.master.master.winfo_width()}
+""")
+
+		img = self.source_img.resize((round(swidth * scale), round(sheight * scale)))
+		self.photo_img = ImageTk.PhotoImage(img)
+		self.widget.config(image = self.photo_img)
+		self.widget.image = self.photo_img
 
 class App(tk.Tk):
-	def __init__(self):
+	def __init__(self, size = 512):
 		super().__init__()
-		img = ImageWidget(self, get_wordle_img([], "test"))
+		
+		self.size = size
+		
+		self.grid_rowconfigure(0, weight=1)
+		self.grid_rowconfigure(1, weight=1)
+		self.grid_columnconfigure(0, weight=2)
+		self.grid_columnconfigure(1, weight=1)
+		
+		self.style = ttk.Style()
+		self.style.configure("a.TFrame", background = "blue")
+		self.style.configure("b.TFrame", background = "red")
+		
+		self.img_area = ttk.Frame(self, style = "a.TFrame")
+		self.create_area = ttk.Frame(self,style= "b.TFrame")
+		self.reply_area = ttk.Frame(self)
+		
+		self.img_area.grid(sticky = "nwse", column = 0, row = 0, rowspan = 2)
+		self.create_area.grid(sticky = "nwse", column = 1, row = 0)
+		self.reply_area.grid(sticky = "nwse", column = 1, row = 1)
+		
+		self.img_area.pack_propagate(0)
+		self.create_area.pack_propagate(0)
+		self.reply_area.pack_propagate(0)
+		a = ImageWidget(self.img_area, get_wordle_img([], "a"*20))
+		a.widget.pack(fill = tk.BOTH, expand = True)
+		
+		self.geometry(f"{size/2*3}x{size}")
 		self.mainloop()
 
 app = App()
