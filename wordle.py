@@ -53,8 +53,9 @@ def create_pane(letter, mode, img_size = 128):
 	return img
 
 def get_word_img(word, answer, img_size = 128, horizontal_margin = 64, vertical_margin = 64, gap = 32):
-	word = word.upper()
+	word = word.upper() + " " * (len(answer) - len(word))
 	answer = answer.upper()
+	word = word[0: len(answer)]
 	img = Image.new("RGBA", (img_size * len(word) + gap * (len(word) - 1) + horizontal_margin * 2, img_size + vertical_margin * 2), color = "#FFFFFF")
 	for i in range(len(word)):
 		char = word[i]
@@ -69,9 +70,9 @@ def get_word_img(word, answer, img_size = 128, horizontal_margin = 64, vertical_
 		img.paste(create_pane(char, mode), (horizontal_margin + (img_size + gap) * i, vertical_margin))
 	return img
 
-def get_wordle_img(words, answer, img_size = 128, horizontal_margin = 64, vertical_margin = 64, horizontal_gap = 32, vertical_gap = 32):
+def get_wordle_img(words, answer, length = 6, img_size = 128, horizontal_margin = 64, vertical_margin = 64, horizontal_gap = 32, vertical_gap = 32):
 	words = [x.upper() for x in words]
-	words += [" " * len(answer)] * (6 - len(words))
+	words += [" " * len(answer)] * (length - len(words))
 	answer = answer.upper()
 	img = Image.new("RGBA", (img_size * len(answer) + horizontal_gap * (len(answer) - 1) + horizontal_margin * 2, img_size * len(words) + vertical_gap * (len(words) - 1) + vertical_margin * 2), color = "#FFFFFF")
 	for i in range(len(words)):
@@ -83,7 +84,6 @@ def get_wordle_img(words, answer, img_size = 128, horizontal_margin = 64, vertic
 
 class ImageWidget():
 	def __init__(self, root, image, **kwargs):
-		super().__init__()
 		self.source_img = image
 		self.photo_img = ImageTk.PhotoImage(image)
 		self.widget = ttk.Label(root, image = self.photo_img, **kwargs)
@@ -100,20 +100,36 @@ class ImageWidget():
 		height = event.height
 		swidth, sheight = self.source_img.size
 		scale = min(width/swidth, height/sheight)
-		print(f"""width:{width}
-height:{height}
-source_width:{swidth}
-source_height:{sheight}
-scale"{scale}
-{swidth - width} {sheight - height}
-{(round(swidth * scale), round(sheight * scale))}
-{self.widget.master.master.winfo_width()}
-""")
-
 		img = self.source_img.resize((round(swidth * scale), round(sheight * scale)))
 		self.photo_img = ImageTk.PhotoImage(img)
 		self.widget.config(image = self.photo_img)
-		self.widget.image = self.photo_img
+
+class InputWidget():
+	def __init__(self, root, hint = "", text_args = {}, entry_args = {}, text_pack_args = {}, entry_pack_args = {}):
+		self.hint = hint
+		self.frame = ttk.Frame(root)
+		self.text_widget = ttk.Label(self.frame, text = hint, **text_args)
+		self.entry_widget = ttk.Entry(self.frame, **entry_args, font = None)
+		self.text_widget.pack(side = "left", **text_pack_args)
+		self.entry_widget.pack(side = "right", **entry_pack_args)
+	
+	def pack(self, **kwargs):
+		self.frame.pack(**kwargs)
+	
+	def grid(self, **kwargs):
+		self.frame.grid(**kwargs)
+
+class ComboboxWidget():
+	def __init__(self, root, values):
+		self.widget = ttk.Combobox(root, values = values)
+		self.widget.current(0)
+		self.value = tk.StringVar()
+		
+	def pack(self, **kwargs):
+		self.widget.pack(**kwargs)
+	
+	def grid(self, **kwargs):
+		self.widget.grid(**kwargs)
 
 class App(tk.Tk):
 	def __init__(self, size = 512):
@@ -141,10 +157,12 @@ class App(tk.Tk):
 		self.img_area.pack_propagate(0)
 		self.create_area.pack_propagate(0)
 		self.reply_area.pack_propagate(0)
-		a = ImageWidget(self.img_area, get_wordle_img([], "a"*20))
-		a.widget.pack(fill = tk.BOTH, expand = True)
 		
-		self.geometry(f"{size/2*3}x{size}")
+		ImageWidget(self.img_area, get_wordle_img(["hello,","world!","this is","a wordle","game by","Python"], "abcdefaaaaaaaaaaaagh")).pack(fill=tk.BOTH, expand=True)
+		InputWidget(self.create_area, "test").pack(fill=tk.BOTH)
+		ComboboxWidget(self.create_area, ["test1", "test2"]).pack(fill=tk.BOTH)
+		
+		self.geometry(f"{size//2*3}x{size}")
 		self.mainloop()
 
 app = App()
