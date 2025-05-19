@@ -87,7 +87,7 @@ class ImageWidget():
 		self.source_img = image
 		self.photo_img = ImageTk.PhotoImage(image)
 		self.widget = ttk.Label(root, image = self.photo_img, **kwargs)
-		self.widget.bind("<Configure>", self.resize)
+		self.widget.bind("<Configure>", self.on_resize)
 		
 	def pack(self, **kwargs):
 		self.widget.pack(**kwargs)
@@ -95,7 +95,7 @@ class ImageWidget():
 	def grid(self, **kwargs):
 		self.widget.grid(**kwargs)
 	
-	def resize(self, event):
+	def on_resize(self, event):
 		width = event.width
 		height = event.height
 		swidth, sheight = self.source_img.size
@@ -104,32 +104,60 @@ class ImageWidget():
 		self.photo_img = ImageTk.PhotoImage(img)
 		self.widget.config(image = self.photo_img)
 
-class InputWidget():
-	def __init__(self, root, hint = "", text_args = {}, entry_args = {}, text_pack_args = {}, entry_pack_args = {}):
+class HintInputWidget():
+	def __init__(self, root, widget_class, hint = "", text_position = "left", font_size = 12, text_args = {}, text_pack_args = {}, widget_args = {}, widget_pack_args = {}):
 		self.hint = hint
-		self.frame = ttk.Frame(root)
-		self.text_widget = ttk.Label(self.frame, text = hint, **text_args)
-		self.entry_widget = ttk.Entry(self.frame, **entry_args, font = None)
-		self.text_widget.pack(side = "left", **text_pack_args)
-		self.entry_widget.pack(side = "right", **entry_pack_args)
-	
+		self.frame = ttk.Frame(root, style = "a.TFrame")
+		
+		temp_args = {"text": hint, "anchor": "center", "font": ("微软雅黑", font_size)}
+		temp_args.update(text_args)
+		self.text_widget = ttk.Label(self.frame, **temp_args)
+		temp_args = {"side": text_position, "fill":tk.BOTH, "expand":True}
+		temp_args.update(text_pack_args)
+		self.text_widget.pack(**temp_args)
+		
+		self.input_widget = widget_class(self.frame, **widget_args)
+		temp_args = {"side": {"left": "right", "top":"bottom", "right": "left", "bottom": "top"}[text_position]}
+		temp_args.update(widget_args)
+		self.input_widget.pack(**widget_pack_args)
+		self.frame.bind("<Configure>", self.on_text_resize)
+		
 	def pack(self, **kwargs):
 		self.frame.pack(**kwargs)
 	
 	def grid(self, **kwargs):
 		self.frame.grid(**kwargs)
-
-class ComboboxWidget():
-	def __init__(self, root, values):
-		self.widget = ttk.Combobox(root, values = values)
-		self.widget.current(0)
-		self.value = tk.StringVar()
-		
-	def pack(self, **kwargs):
-		self.widget.pack(**kwargs)
 	
-	def grid(self, **kwargs):
-		self.widget.grid(**kwargs)
+	def on_text_resize(self, event):
+		print("text",event.width, event.height)
+		print(event.widget.master.winfo_width())
+
+class EntryWidget(HintInputWidget):
+	def __init__(self, root, **kwargs):
+		super().__init__(root, ttk.Entry, **kwargs)
+
+
+class OptionWidget(HintInputWidget):
+	def __init__(self, root, values, **kwargs):
+		self.value = tk.StringVar()
+		widget_args = kwargs.get("widget_args", {})
+		args = {"style": "a.TCombobox", "textvariable": self.value, "values": values, "justify": "center", "state": "readonly", "exportselection": False}
+		args.update(widget_args)
+		kwargs["widget_args"] = args
+		
+		super().__init__(root, ttk.Combobox, **kwargs)
+		self.input_widget.current(0)
+		self.input_widget.bind('<<ComboboxSelected>>', self.on_selected)
+		self.input_widget.bind("<Configure>", self.on_resize)
+
+	def on_selected(self, event):
+		event.widget.master.focus() #消除选择后的蓝色高亮
+		selected_value = self.value.get()
+		print(selected_value)
+	
+	def on_resize(self, event):
+		print(event.width, event.height)
+
 
 class App(tk.Tk):
 	def __init__(self, size = 512):
@@ -159,8 +187,9 @@ class App(tk.Tk):
 		self.reply_area.pack_propagate(0)
 		
 		ImageWidget(self.img_area, get_wordle_img(["hello,","world!","this is","a wordle","game by","Python"], "abcdefaaaaaaaaaaaagh")).pack(fill=tk.BOTH, expand=True)
-		InputWidget(self.create_area, "test").pack(fill=tk.BOTH)
-		ComboboxWidget(self.create_area, ["test1", "test2"]).pack(fill=tk.BOTH)
+		#OptionWidget(self.create_area, ["test1", "test2"], hint = "te1231312321st").pack(fill="x")
+		#EntryWidget(self.create_area, hint = "TEST one").pack(fill = "x")
+		#EntryWidget(self.create_area, hint = "TEST two", text_position="top").pack(fill = "x")
 		
 		self.geometry(f"{size//2*3}x{size}")
 		self.mainloop()

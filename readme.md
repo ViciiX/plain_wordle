@@ -2,6 +2,8 @@
 > 一个十分简单(简陋)的用来练手的Wordle程序
 > A very simple Wordle game for practice
 
+#### 目前还在开发中！Developing!
+
 #### ✨实现
 - Pillow库：生成Wordle图像
 - Tkinter库：创造GUI界面
