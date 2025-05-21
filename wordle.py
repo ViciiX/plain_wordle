@@ -87,51 +87,94 @@ def add_update(opt, target):
 
 class ImageWidget():
 	def __init__(self, root, image, **kwargs):
+		self.root = root
 		self.source_img = image
-		self.photo_img = ImageTk.PhotoImage(image)
+		self.photo_img = ImageTk.PhotoImage(self.source_img)
 		self.widget = ttk.Label(root, image = self.photo_img, **kwargs)
 		self.widget.bind("<Configure>", self.on_resize)
 		
 	def pack(self, **kwargs):
+		kwargs = add_update({"fill": "both", "expand": True}, kwargs)
 		self.widget.pack(**kwargs)
 	
 	def grid(self, **kwargs):
 		self.widget.grid(**kwargs)
 	
-	def on_resize(self, event):
-		width = event.width
-		height = event.height
+	def set_image(self, img):
+		self.photo_img = ImageTk.PhotoImage(img)
+		self.widget.config(image = self.photo_img)
+	
+	def replace_image(self, img):
+		self.source_img = img
+		self.on_resize()
+	
+	def on_resize(self, event = None):
+		width = self.root.winfo_width()
+		height = self.root.winfo_height()
 		swidth, sheight = self.source_img.size
 		scale = min(width/swidth, height/sheight)
 		img = self.source_img.resize((round(swidth * scale), round(sheight * scale)))
-		self.photo_img = ImageTk.PhotoImage(img)
-		self.widget.config(image = self.photo_img)
+		self.set_image(img)
 
-class HintInputWidget():
-	def __init__(self, root, widget_class, hint = "", text_position = "left", font_name = "微软雅黑", font_size = 12, text_args = {}, text_pack_args = {}, widget_args = {}, widget_pack_args = {}):
+class TextBaseWidget():
+	def __init__(self, root, bind_widgets = None, font_name = "微软雅黑", font_size = 12):
 		self.root = root
-		self.hint = hint
-		self.frame = ttk.Frame(root, style = "a.TFrame")
+		self.origin_size = None
 		self.font = (font_name, font_size)
+		if (bind_widgets != None):
+			self.bind_resize(bind_widgets)
+		
+	def bind_resize(self, widgets):
+		if (type(widgets) != list):
+			widgets.bind("<Configure>", self.on_resize)
+		else:
+			for widget in widgets:
+				widget.bind("<Configure>", self.on_resize)
+		
+	def on_resize(self, event):
+		event.width, event.height = self.root.winfo_width(), self.root.winfo_height()
+		if (self.origin_size == None):
+			self.origin_size = (event.width, event.height)
+		width, height = event.width, event.height
+		rwidth, rheight = self.origin_size
+		scale = min(width/rwidth, height/rheight)
+		event.widget.configure(font = (self.font[0], round(self.font[1] * scale)))
+	
+	def pack(self, **kwargs):
+		kwargs = add_update({"fill": "x"}, kwargs)
+		self.widget.pack(**kwargs)
+	
+	def grid(self, **kwargs):
+		self.widget.grid(**kwargs)
+	
+class LabelWidget(TextBaseWidget):
+	def __init__(self, root, text, font_name = "微软雅黑", font_size = 12, **kwargs):
+		kwargs = add_update({"anchor": "center"}, kwargs)
+		self.widget = ttk.Label(root, text = text, **kwargs)
+		super().__init__(root, self.widget, font_name, font_size)
+
+class ButtonWidget(TextBaseWidget):
+	def __init__(self, root, text, func, font_name = "微软雅黑", font_size = 12, **kwargs):
+		self.widget = tk.Button(root, text = text, command = func, **kwargs)
+		super().__init__(root, self.widget, font_name, font_size)
+	
+class HintInputWidget(TextBaseWidget):
+	def __init__(self, root, widget_class, hint = "", text_position = "left", font_name = "微软雅黑", font_size = 12, text_args = {}, text_pack_args = {}, widget_args = {}, widget_pack_args = {}):
+		super().__init__(root, font_name = font_name, font_size = font_size)
+		self.hint = hint
+		self.frame = ttk.Frame(root)
 		self.side = text_position
 		
 		text_args = add_update({"text": hint, "anchor": "center", "font": self.font}, text_args)
 		self.text_widget = ttk.Label(self.frame, **text_args)
 		text_pack_args = add_update({"side": self.side, "fill": "both", "expand": True, "anchor": "nw"}, text_pack_args)
 		self.text_widget.pack(**text_pack_args)
-		self.origin_size = None
 		
 		self.input_widget = widget_class(self.frame, **widget_args)
 		widget_pack_args = add_update({"fill": "both", "expand": True, "anchor": "nw", "side": {"left": "right", "top":"bottom", "right": "left", "bottom": "top"}[text_position]}, widget_pack_args)
 		self.input_widget.pack(**widget_pack_args)
 		
 		self.frame.bind("<Configure>", self.on_text_resize)
-		
-	def pack(self, **kwargs):
-		self.frame.pack(**kwargs)
-	
-	def grid(self, **kwargs):
-		self.frame.grid(**kwargs)
 	
 	def on_text_resize(self, event):
 		event.width, event.height = self.root.winfo_width(), self.root.winfo_height()
@@ -144,7 +187,11 @@ class HintInputWidget():
 		self.input_widget.configure(font = (self.font[0], round(self.font[1] * scale)))
 
 class EntryWidget(HintInputWidget):
-	def __init__(self, root, **kwargs):
+	def __init__(self, root, hint, **kwargs):
+		self.value = tk.StringVar()
+		widget_args = kwargs.get("widget_args", {})
+		kwargs["widget_args"] = add_update({"textvariable": self.value}, widget_args)
+		kwargs = add_update({"hint": hint}, kwargs)
 		super().__init__(root, ttk.Entry, **kwargs)
 	
 	def pack(self, **kwargs):
@@ -155,13 +202,13 @@ class EntryWidget(HintInputWidget):
 		kwargs = add_update({"fill": fill}, kwargs)
 		self.frame.pack(**kwargs)
 
-
-
 class OptionWidget(HintInputWidget):
-	def __init__(self, root, values, **kwargs):
+	def __init__(self, root, values, hint, select_handle = None, **kwargs):
 		self.value = tk.StringVar()
+		self.select_handle = select_handle
 		widget_args = kwargs.get("widget_args", {})
-		kwargs["widget_args"] = add_update({"style": "a.TCombobox", "textvariable": self.value, "values": values, "justify": "center", "state": "readonly", "exportselection": False}, widget_args)
+		kwargs["widget_args"] = add_update({"textvariable": self.value, "values": values, "justify": "center", "state": "readonly", "exportselection": False}, widget_args)
+		kwargs = add_update({"hint": hint}, kwargs)
 		
 		super().__init__(root, ttk.Combobox, **kwargs)
 		self.input_widget.current(0)
@@ -173,29 +220,29 @@ class OptionWidget(HintInputWidget):
 		
 	def on_selected(self, event):
 		event.widget.master.focus() #消除选择后的蓝色高亮
-		selected_value = self.value.get()
-		print(selected_value)
-
+		if (self.select_handle != None):
+			self.select_handle(self.value.get())
 
 class App(tk.Tk):
 	def __init__(self, size = 512):
 		super().__init__()
 		
 		self.size = size
+		self.tag = ""
+		self.length = ""
+		
+		self.img_area = ttk.Frame(self)
+		self.create_area = ttk.Frame(self)
+		self.reply_area = ttk.Frame(self)
+		
+		self.hint_widget = None
+		self.image_widget = ImageWidget(self.img_area, get_wordle_img(["empty", " mpty", " m ty", " m t "], "empty"))
+		self.image_widget.pack()
 		
 		self.grid_rowconfigure(0, weight=1)
 		self.grid_rowconfigure(1, weight=1)
 		self.grid_columnconfigure(0, weight=2)
 		self.grid_columnconfigure(1, weight=1)
-		
-		self.style = ttk.Style()
-		self.style.configure("a.TFrame", background = "blue")
-		self.style.configure("b.TFrame", background = "red")
-		self.style.configure("c.TFrame", background = "green")
-		
-		self.img_area = ttk.Frame(self, style = "a.TFrame")
-		self.create_area = ttk.Frame(self,style= "c.TFrame")
-		self.reply_area = ttk.Frame(self)
 		
 		self.img_area.grid(sticky = "nwse", column = 0, row = 0, rowspan = 2)
 		self.create_area.grid(sticky = "nwse", column = 1, row = 0)
@@ -205,13 +252,53 @@ class App(tk.Tk):
 		self.create_area.pack_propagate(0)
 		self.reply_area.pack_propagate(0)
 		
-		ImageWidget(self.img_area, get_wordle_img(["hello, world!","this is", "a wordle game","by Python"], "abcdefaaaaaaaaaaaagh")).pack(fill="both", expand=True)
-		OptionWidget(self.create_area, ["测试选项_1", "测试选项_2"], hint = "测试选项栏").pack()
-		EntryWidget(self.create_area, hint = "测试输入栏1").pack()
-		EntryWidget(self.create_area, hint = "测试输入栏2", text_position="top").pack()
-		OptionWidget(self.create_area, ["测试选项_2", "测试选项_2"], hint = "测试选项栏").pack()
+		self.add_create_area_widgets()
 
 		self.geometry(f"{size//2*3}x{size}")
 		self.mainloop()
-
+	
+	def add_create_area_widgets(self):
+		def pressed():
+			length = self.length.get()
+			tag = {"中考": "zk", "高考": "gk", "任意": None}[self.tag.get()]
+			if (length.isdigit() or length == ""):
+			   if (length == "" or (4 <= int(length) and int(length) <= 15)):
+				   length = int(length) if (length != "") else None
+				   self.create_wordle(length, tag)
+			   else:
+				   self.hint("只支持4-15长度的单词")
+			else:
+				self.hint("长度一栏请输入4-15的数字！")
+		
+		length_widget = EntryWidget(self.create_area, "单词长度")
+		option_widget = OptionWidget(self.create_area, ["任意", "中考", "高考"], "选择标签")
+		button_widget = ButtonWidget(self.create_area, "创建", pressed)
+		self.hint_widget = LabelWidget(self.create_area, "")
+		
+		self.length = length_widget.value
+		self.tag = option_widget.value
+		
+		length_widget.pack()
+		option_widget.pack()
+		button_widget.pack()
+		self.hint_widget.pack()
+	
+	def hint(self, text, time = 3):
+		self.hint_widget.widget.configure(text = text)
+		if (time != None):
+			self.hint_widget.widget.after(time * 1000, self.hint, "", None)
+	
+	def create_wordle(self, length, tag):
+		if (length == None):
+			word = endict.loc[:, "word"]
+		else:
+			word = get_target_word(int(length), tag)
+		if (word.empty == False):
+			self.word = word.sample().values[0]
+			self.info = json.loads(endict.loc[endict.loc[:, "word"] == self.word].reset_index().to_json())
+			self.image_widget.replace_image(get_wordle_img([], self.word))
+			self.hint("创建成功！")
+		else:
+			self.hint("单词数据库内未找到单词")
+	
 app = App()
