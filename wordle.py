@@ -166,7 +166,6 @@ class OptionWidget(HintInputWidget):
 		super().__init__(root, ttk.Combobox, **kwargs)
 		self.input_widget.current(0)
 		self.input_widget.bind('<<ComboboxSelected>>', self.on_selected)
-		self.input_widget.bind("<Configure>", self.on_resize)
 		
 	def pack(self, **kwargs):
 		kwargs = add_update({"fill": "x"}, kwargs)
@@ -176,9 +175,6 @@ class OptionWidget(HintInputWidget):
 		event.widget.master.focus() #消除选择后的蓝色高亮
 		selected_value = self.value.get()
 		print(selected_value)
-	
-	def on_resize(self, event):
-		pass#print(event.width, event.height)
 
 
 class App(tk.Tk):
