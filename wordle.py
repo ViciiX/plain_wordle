@@ -109,6 +109,7 @@ class ImageWidget():
 
 class HintInputWidget():
 	def __init__(self, root, widget_class, hint = "", text_position = "left", font_name = "微软雅黑", font_size = 12, text_args = {}, text_pack_args = {}, widget_args = {}, widget_pack_args = {}):
+		self.root = root
 		self.hint = hint
 		self.frame = ttk.Frame(root, style = "a.TFrame")
 		self.font = (font_name, font_size)
@@ -133,13 +134,12 @@ class HintInputWidget():
 		self.frame.grid(**kwargs)
 	
 	def on_text_resize(self, event):
-		#print((event.width, event.height))
+		event.width, event.height = self.root.winfo_width(), self.root.winfo_height()
 		if (self.origin_size == None):
 			self.origin_size = (event.width, event.height)
 		width, height = event.width, event.height
 		rwidth, rheight = self.origin_size
 		scale = min(width/rwidth, height/rheight)
-		#print(scale, width/rwidth, height/rheight)
 		self.text_widget.configure(font = (self.font[0], round(self.font[1] * scale)))
 		self.input_widget.configure(font = (self.font[0], round(self.font[1] * scale)))
 
@@ -170,7 +170,7 @@ class OptionWidget(HintInputWidget):
 		
 	def pack(self, **kwargs):
 		kwargs = add_update({"fill": "x"}, kwargs)
-		self.frame.pack(**kwargs)	
+		self.frame.pack(**kwargs)
 		
 	def on_selected(self, event):
 		event.widget.master.focus() #消除选择后的蓝色高亮
@@ -178,7 +178,7 @@ class OptionWidget(HintInputWidget):
 		print(selected_value)
 	
 	def on_resize(self, event):
-		print(event.width, event.height)
+		pass#print(event.width, event.height)
 
 
 class App(tk.Tk):
@@ -195,9 +195,10 @@ class App(tk.Tk):
 		self.style = ttk.Style()
 		self.style.configure("a.TFrame", background = "blue")
 		self.style.configure("b.TFrame", background = "red")
+		self.style.configure("c.TFrame", background = "green")
 		
 		self.img_area = ttk.Frame(self, style = "a.TFrame")
-		self.create_area = ttk.Frame(self,style= "b.TFrame")
+		self.create_area = ttk.Frame(self,style= "c.TFrame")
 		self.reply_area = ttk.Frame(self)
 		
 		self.img_area.grid(sticky = "nwse", column = 0, row = 0, rowspan = 2)
@@ -212,7 +213,8 @@ class App(tk.Tk):
 		OptionWidget(self.create_area, ["测试选项_1", "测试选项_2"], hint = "测试选项栏").pack()
 		EntryWidget(self.create_area, hint = "测试输入栏1").pack()
 		EntryWidget(self.create_area, hint = "测试输入栏2", text_position="top").pack()
-		
+		OptionWidget(self.create_area, ["测试选项_2", "测试选项_2"], hint = "测试选项栏").pack()
+
 		self.geometry(f"{size//2*3}x{size}")
 		self.mainloop()
 
