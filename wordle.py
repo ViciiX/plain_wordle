@@ -292,6 +292,8 @@ class App(tk.Tk):
 		self.add_reply_area_widgets()
 
 		self.geometry(f"{size*2}x{size}")
+		self.title("Plain Wordle")
+		self.iconbitmap("icon.ico")
 		self.mainloop()
 	
 	def add_create_area_widgets(self):
@@ -425,7 +427,7 @@ class App(tk.Tk):
 			self.tips = list(range(len(self.word)))
 			self.update_wordle_img()
 			self.hint(hint_widget, "创建成功！")
-			#print(self.word)
+			print(self.word)
 		else:
 			self.hint(hint_widget, "单词数据库内未找到单词")
 	
