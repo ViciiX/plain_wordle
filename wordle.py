@@ -1,5 +1,5 @@
 import pandas as pd
-import os, json, datetime
+import os, json, random
 from PIL import Image, ImageDraw, ImageFont, ImageTk
 import tkinter as tk
 import tkinter.ttk as ttk
@@ -11,6 +11,7 @@ def load_dict(path = os.getcwd()):
     
 endict = load_dict()
 font_path = os.path.join(os.getcwd(), "wordle_font.ttf")
+tags = {"中考": "zk", "高考": "gk", "四级": "cet4", "六级": "cet6", "托福": "toefl", "GRE": "gre", "任意": None}
 
 def get_target_word(word_length = None, tag = None):
 	word = endict.loc[:,"word"]
@@ -153,6 +154,23 @@ class LabelWidget(TextBaseWidget):
 		self.widget = ttk.Label(root, text = text, **kwargs)
 		super().__init__(root, self.widget, font_name, font_size)
 
+class MessageWidget(TextBaseWidget):
+	def __init__(self, root, text, font_name = "微软雅黑", font_size = 12, **kwargs):
+		kwargs = add_update({"anchor": "center"}, kwargs)
+		self.widget = tk.Message(root, text = text, **kwargs)
+		super().__init__(root, self.widget, font_name, font_size)
+	
+	def on_resize(self, event):
+		swidth, sheight = event.width, event.height
+		width, height = self.root.winfo_width(), self.root.winfo_height()
+		if (self.origin_size == None):
+			self.origin_size = (width, height)
+		
+		rwidth, rheight = self.origin_size
+		scale = min(width/rwidth, height/rheight)
+		self.widget.configure(font = (self.font[0], round(self.font[1] * scale)), aspect = round(swidth/sheight * 100))
+
+
 class ButtonWidget(TextBaseWidget):
 	def __init__(self, root, text, func, font_name = "微软雅黑", font_size = 12, **kwargs):
 		self.widget = tk.Button(root, text = text, command = lambda: func(self.widget), **kwargs)
@@ -201,6 +219,15 @@ class EntryWidget(HintInputWidget):
 			fill = "x"
 		kwargs = add_update({"fill": fill}, kwargs)
 		self.frame.pack(**kwargs)
+	
+	def disable(self):
+		self.input_widget.configure(state = "disabled")
+	
+	def enable(self):
+		self.input_widget.configure(state = "normal")
+	
+	def clear(self):
+		self.input_widget.delete(0, len(self.value.get()))
 
 class OptionWidget(HintInputWidget):
 	def __init__(self, root, values, hint, select_handle = None, **kwargs):
@@ -232,11 +259,13 @@ class App(tk.Tk):
 		self.length = ""
 		self.word = ""
 		self.words = []
+		self.tips = []
 		self.answer = ""
 		
 		self.img_area = ttk.Frame(self, relief = "groove", padding = 5)
 		self.create_area = ttk.Frame(self, relief = "groove", padding = 5)
 		self.reply_area = ttk.Frame(self, relief = "groove", padding = 5)
+		self.info_area = ttk.Frame(self, relief = "groove", padding = 5)
 		
 		self.image_widget = ImageWidget(self.img_area, get_wordle_img(["empty", " mpty", " m ty", " m t "], "empty"))
 		self.answer_widget = None
@@ -246,19 +275,23 @@ class App(tk.Tk):
 		self.grid_rowconfigure(1, weight=1)
 		self.grid_columnconfigure(0, weight=2)
 		self.grid_columnconfigure(1, weight=1)
+		self.grid_columnconfigure(2, weight=1)
+
 		
 		self.img_area.grid(sticky = "nwse", column = 0, row = 0, rowspan = 2)
 		self.create_area.grid(sticky = "nwse", column = 1, row = 0)
 		self.reply_area.grid(sticky = "nwse", column = 1, row = 1)
+		self.info_area.grid(sticky = "nwse", column = 2, row = 0 ,rowspan = 2)
 		
 		self.img_area.pack_propagate(0)
 		self.create_area.pack_propagate(0)
 		self.reply_area.pack_propagate(0)
+		self.info_area.pack_propagate(0)
 		
 		self.add_create_area_widgets()
 		self.add_reply_area_widgets()
 
-		self.geometry(f"{size//2*3}x{size}")
+		self.geometry(f"{size*2}x{size}")
 		self.mainloop()
 	
 	def add_create_area_widgets(self):
@@ -269,10 +302,10 @@ class App(tk.Tk):
 			
 		def pressed(widget):
 			length = self.length.get()
-			tag = {"中考": "zk", "高考": "gk", "任意": None}[self.tag.get()]
 			if (length.isdigit() or length == ""):
 			   if (length == "" or (4 <= int(length) and int(length) <= 15)):
 				   length = int(length) if (length != "") else None
+				   tag = tags[self.tag.get()]
 				   self.create_wordle(hint_widget.widget, length, tag)
 				   widget.configure(state = "disabled")
 				   widget.after(2000, widget.configure, {"state": "active"})
@@ -282,7 +315,7 @@ class App(tk.Tk):
 				hint("长度一栏请输入4-15的数字！")
 		
 		length_widget = EntryWidget(self.create_area, "单词长度")
-		option_widget = OptionWidget(self.create_area, ["任意", "中考", "高考"], "选择标签")
+		option_widget = OptionWidget(self.create_area, list(tags.keys()), "选择标签")
 		button_widget = ButtonWidget(self.create_area, "创建", pressed)
 		
 		self.length = length_widget.value
@@ -299,30 +332,80 @@ class App(tk.Tk):
 		def hint(text, time = 2):
 			self.hint(hint_widget.widget, text, time)
 		
-		def on_answer(event):
+		def show_info(word):
+			info = json.loads(endict.loc[endict.loc[:, "word"] == word].reset_index().to_json())
+			translation = info.get("translation", {}).get("0", "未找到").replace("\\n", "\n")
+			word_tags = info.get("tag", {}).get("0", None)
+			if (word_tags != None):
+				tag_text = word_tags.replace(" ", "; ")
+			else:
+				tag_text = "无"
+			info_str = "答案：\n" if (word == self.word) else ""
+			info_str += f"""单词：{word}
+音标：[{info.get("phonetic", {}).get("0", "未找到")}]
+中文释义：
+{translation}
+词频排名：{info.get("frq", {}).get("0", "未找到")}
+标签：{tag_text}"""
+			self.hint(info_widget.widget, info_str ,None)
+		
+		def on_answer(event):			
 			answer = self.answer.get()
 			if (len(answer) == len(self.word)):
 				if (endict.loc[endict.loc[:, "word"] == answer].empty == False or endict.loc[endict.loc[:, "word"] == answer.lower()].empty == False):
-					if (answer.lower() == self.word or answer == self.word):
-						self.words.append(answer)
+					info_widget.widget.configure(bg = "#fb6f6f")
+					
+					show_info(answer)
+					if (answer.lower() == self.word.lower() or answer == self.word):
 						hint("恭喜你猜对了！")
-						info_str = f"""单词：{self.word}
-音标：[{self.info.get("phonetic", {}).get("0", "未找到")}]
-中文释义：
-{self.info.get("translation", {}).get("0", "未找到").replace("\\n", "\n")}
-词频排名：{self.info.get("frq", {}).get("0", "未找到")}"""
-						self.hint(info_widget.widget, info_str ,None)
-					self.image_widget.replace_image(get_wordle_img(self.words, self.word))
+						show_ans(None, "#7defc1")
+					elif (len(self.words) == 6):
+						hint("次数用尽，再接再厉！")
+						show_ans(None, "#ef7d7d")
+					else:
+						self.words.append(answer)
+						self.update_wordle_img()
 				else:
-					hint("单词数据库内未找到单词\n试试用原型？")
+					hint("单词数据库内未找到单词\n- 试试用原型？")
 			else:
 				hint("单词长度不一致！")
+			self.answer_widget.clear()
 
-		self.answer_widget = EntryWidget(self.reply_area, "输入单词", widget_args = {"state": "disabled","validate": "key", "validatecommand": (self.register(lambda x: x.isalpha()), "%P")})
+		def tip(event):
+			if (len(self.tips) > 0):
+				if (len(self.words) < 5 and len(self.tips) > 1):
+					tip_word = ["?"] * len(self.word)
+					del self.tips[random.randint(0, len(self.tips) - 1)]
+					for i in range(len(self.word)):
+						if (i not in self.tips):
+							tip_word[i] = list(self.word)[i]
+					self.words.append("".join(tip_word))
+					self.update_wordle_img()
+				else:
+					hint("要不你还是揭晓答案吧")
+			else:
+				hint("没什么好提示的啦")
+		
+		def show_ans(event = None, bg = None):
+			if (self.word not in self.words and self.word != ""):
+				info_widget.widget.configure(bg = bg)
+				self.words.append(self.word)
+				show_info(self.word)
+				self.answer_widget.disable()
+				self.update_wordle_img()
+
+		self.answer_widget = EntryWidget(self.reply_area, "输入单词")
+		self.answer_widget.disable()
 		self.answer_widget.input_widget.bind("<Return>", on_answer)
-		info_widget = LabelWidget(self.reply_area, "")
+		
+		tip_widget = ButtonWidget(self.reply_area, "提示", tip)
+		showans_widget = ButtonWidget(self.reply_area, "揭晓答案", show_ans)
+		
+		info_widget = MessageWidget(self.info_area, "",  anchor = "nw", justify = "left")
 		
 		self.answer_widget.pack()
+		tip_widget.pack()
+		showans_widget.pack()
 		hint_widget.pack()
 		info_widget.pack()
 		
@@ -334,21 +417,18 @@ class App(tk.Tk):
 			widget.after(time * 1000, self.hint, widget, "", None)
 	
 	def create_wordle(self, hint_widget, length, tag):
-		if (length == None):
-			word = endict.loc[:, "word"]
-		else:
-			word = get_target_word(int(length), tag)
+		word = get_target_word(int(length) if (length != None) else None, tag)
 		if (word.empty == False):
 			self.words = []
-			self.answer_widget.input_widget.configure(state = "normal")
+			self.answer_widget.enable()
 			self.word = word.sample().values[0]
-			self.info = json.loads(endict.loc[endict.loc[:, "word"] == self.word].reset_index().to_json())
+			self.tips = list(range(len(self.word)))
 			self.update_wordle_img()
 			self.hint(hint_widget, "创建成功！")
-			print(self.word)
+			#print(self.word)
 		else:
 			self.hint(hint_widget, "单词数据库内未找到单词")
 	
 	def update_wordle_img(self):
-		self.image_widget.replace_image(get_wordle_img([], self.word))
+		self.image_widget.replace_image(get_wordle_img(self.words, self.word))
 app = App()
