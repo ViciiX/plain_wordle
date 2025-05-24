@@ -1,17 +1,20 @@
 import pandas as pd
-import os, json, random
+import os, json, random, sys
 from PIL import Image, ImageDraw, ImageFont, ImageTk
 import tkinter as tk
 import tkinter.ttk as ttk
 
+if (hasattr(sys, "_MEIPASS")):
+	data_path = os.path.join(sys._MEIPASS, "data")
+else:
+	data_path = os.path.join(os.getcwd(), "data")
 
-
-def load_dict(path = os.getcwd()):
-    return pd.read_pickle(os.path.join(path, "endict.pkl"))
+def load_dict():
+    return pd.read_pickle(os.path.join(data_path, "endict.pkl"))
     
 endict = load_dict()
-font_path = os.path.join(os.getcwd(), "wordle_font.ttf")
-tags = {"中考": "zk", "高考": "gk", "四级": "cet4", "六级": "cet6", "托福": "toefl", "GRE": "gre", "任意": None}
+font_path = os.path.join(data_path, "wordle_font.ttf")
+tags = {"任意": None, "中考": "zk", "高考": "gk", "四级": "cet4", "六级": "cet6", "托福": "toefl", "GRE": "gre"}
 
 def get_target_word(word_length = None, tag = None):
 	word = endict.loc[:,"word"]
@@ -293,7 +296,7 @@ class App(tk.Tk):
 
 		self.geometry(f"{size*2}x{size}")
 		self.title("Plain Wordle")
-		self.iconbitmap("icon.ico")
+		self.iconbitmap(os.path.join(data_path, "icon.ico"))
 		self.mainloop()
 	
 	def add_create_area_widgets(self):
