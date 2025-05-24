@@ -1,6 +1,6 @@
 # Plain Wordle
-> 一个十分简单(简陋)的用来练手的Wordle程序
-> A very simple Wordle game for practice
+> 一个十分简单(简陋)的用来练手的Wordle程序  
+> A very simple Wordle game for practice  
 
 #### ✨依赖
 - Pandas：单词数据处理
