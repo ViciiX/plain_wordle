@@ -10,8 +10,11 @@ else:
 	data_path = os.path.join(os.getcwd(), "data")
 
 def load_dict():
-    return pd.read_pickle(os.path.join(data_path, "endict.pkl"))
-    
+	if (sys.maxsize > 2**32):
+		return pd.read_pickle(os.path.join(data_path, "endict.pkl"))
+	else:
+		return pd.read_pickle(os.path.join(data_path, "endict32.pkl"))
+
 endict = load_dict()
 font_path = os.path.join(data_path, "wordle_font.ttf")
 tags = {"任意": None, "中考": "zk", "高考": "gk", "四级": "cet4", "六级": "cet6", "托福": "toefl", "GRE": "gre"}
@@ -377,7 +380,7 @@ class App(tk.Tk):
 			self.answer_widget.clear()
 
 		def tip(event):
-			if (len(self.tips) > 0):
+			if (len(self.tips) > 0 and self.word not in self.words):
 				if (len(self.words) < 5 and len(self.tips) > 1):
 					tip_word = ["?"] * len(self.word)
 					del self.tips[random.randint(0, len(self.tips) - 1)]
