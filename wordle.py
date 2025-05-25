@@ -392,7 +392,7 @@ class App(tk.Tk):
 					if (answer == self.word):
 						hint("恭喜你猜对了！")
 						show_ans(None, "#7defc1")
-					elif (len(self.words) == 6):
+					elif (len(self.words) == 5):
 						hint("次数用尽，再接再厉！")
 						show_ans(None, "#ef7d7d")
 					else:
@@ -432,7 +432,7 @@ class App(tk.Tk):
 		self.answer_widget.input_widget.bind("<Return>", on_answer)
 		
 		tip_widget = ButtonWidget(self.reply_area, "提示", tip)
-		showans_widget = ButtonWidget(self.reply_area, "揭晓答案", show_ans)
+		showans_widget = ButtonWidget(self.reply_area, "揭晓答案", lambda x: show_ans(x, "#7defc1"))
 		
 		info_widget = MessageWidget(self.info_area, "",  anchor = "nw", justify = "left")
 		itsme = LabelWidget(self.info_area, "ViciiX", font_size = 8, fg = "#BBBBBB", anchor = "se")
