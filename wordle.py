@@ -161,7 +161,7 @@ class TextBaseWidget():
 class LabelWidget(TextBaseWidget):
 	def __init__(self, root, text, font_name = "微软雅黑", font_size = 12, **kwargs):
 		kwargs = add_update({"anchor": "center"}, kwargs)
-		self.widget = ttk.Label(root, text = text, **kwargs)
+		self.widget = tk.Label(root, text = text, **kwargs)
 		super().__init__(root, self.widget, font_name, font_size)
 
 class MessageWidget(TextBaseWidget):
@@ -435,12 +435,14 @@ class App(tk.Tk):
 		showans_widget = ButtonWidget(self.reply_area, "揭晓答案", show_ans)
 		
 		info_widget = MessageWidget(self.info_area, "",  anchor = "nw", justify = "left")
+		itsme = LabelWidget(self.info_area, "ViciiX", font_size = 8, fg = "#BBBBBB", anchor = "se")
 		
 		self.answer_widget.pack()
 		tip_widget.pack()
 		showans_widget.pack()
 		hint_widget.pack()
 		info_widget.pack()
+		itsme.pack(fill = "both", expand = True, anchor = "se")
 		
 		self.answer = self.answer_widget.value
 	
